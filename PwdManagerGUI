@@ -1,1 +1,159 @@
 //GUI Version of PWDManager
+
+import os.path
+from cryptography.fernet import Fernet
+import random, string
+import tkinter as tk
+from tkinter import messagebox
+
+def get_specific_line(file_path, line_number):
+    line_data = ""
+    try:
+        with open('PwdList.txt', "r") as file:
+            lines = file.readlines()
+            if 1 <= line_number <= len(lines):
+                line_data = lines[line_number - 1]
+            else:
+                messagebox.showinfo("Error", "Line number is out of range.")
+    except FileNotFoundError:
+        messagebox.showinfo("Error", "File not found.")
+    except IOError:
+        messagebox.showinfo("Error", "An error occurred while reading the file.")
+    return line_data
+
+def display_password():
+    # Display Passwords
+    taglist_path = "taglist.txt"
+    with open(taglist_path, "r") as taglist:
+        lines = taglist.readlines()
+
+    selection = entry_display.get()
+    try:
+        selected_line_number = int(selection)
+        if 1 <= selected_line_number <= len(lines):
+            selected_line = get_specific_line(taglist_path, selected_line_number)
+            dpwd = selected_line.strip()
+            pwdd = f.decrypt(dpwd).decode()
+            messagebox.showinfo("Selected Password", pwdd)
+        else:
+            messagebox.showinfo("Error", "Invalid selection.")
+    except ValueError:
+        messagebox.showinfo("Error", "Invalid input. Please enter a valid number.")
+
+def save_password():
+    # Save Password
+    tag = entry_tag.get()
+    cpwd = entry_password.get()
+    encrypted_cpwd = f.encrypt(cpwd.encode())
+    with open('PwdList.txt', 'ab') as file:
+        file.write(encrypted_cpwd + b'\n')
+    with open('taglist.txt', 'a') as file:
+        file.write(tag + '\n')
+    messagebox.showinfo("Success", "Password saved successfully!")
+
+def generate_password():
+    gtag = entry_generate_tag.get()
+    plength = int(entry_password_length.get())
+    s = string.ascii_lowercase + string.digits + string.ascii_uppercase + string.punctuation
+    genpass = (''.join(random.sample(s, plength)))
+    messagebox.showinfo("Generated Password", "Your password is:\n" + genpass)
+    encrypted_genpass = f.encrypt(genpass.encode())
+    with open('PwdList.txt', 'ab') as file:
+        file.write(encrypted_genpass + b'\n')
+    with open('taglist.txt', 'a') as file:
+        file.write(gtag + '\n')
+
+def login():
+    global f
+    logp = os.path.isfile("log.txt")
+    if logp:
+        usrn = entry_username.get()
+        usrp = entry_password.get()
+        with open('Titan.txt', 'rb') as file:
+            key = file.readline().strip()
+        f = Fernet(key)
+        with open('log.txt', 'rb') as file:
+            encrypted_username = file.readline().strip()
+            encrypted_password = file.readline().strip()
+            username = f.decrypt(encrypted_username).decode()
+            password = f.decrypt(encrypted_password).decode()
+        if usrn == username and usrp == password:
+            messagebox.showinfo("Success", "Successfully logged in!")
+            entry_display.config(state=tk.NORMAL)
+            button_display.config(state=tk.NORMAL)
+            button_save.config(state=tk.NORMAL)
+            entry_tag.config(state=tk.NORMAL)
+            entry_generate_tag.config(state=tk.NORMAL)
+            entry_password_length.config(state=tk.NORMAL)
+            button_generate.config(state=tk.NORMAL)
+            entry_display.delete(0, tk.END)
+            entry_display.insert(0, "1")
+        else:
+            messagebox.showinfo("Error", "Wrong password or username.")
+    else:
+        key = Fernet.generate_key()
+        susrn = entry_username.get()
+        susrp = entry_password.get()
+        # Create a Fernet object with the key
+        global g
+        g = Fernet(key)
+        # Encrypt the username and password
+        encrypted_username = g.encrypt(susrn.encode())
+        encrypted_password = g.encrypt(susrp.encode())
+        # Write the encrypted username and password to a file
+        with open('log.txt', 'wb') as file:
+            file.write(encrypted_username + b'\n')
+            file.write(encrypted_password)
+
+        with open('Titan.txt', 'wb') as file:
+            file.write(key)
+
+        messagebox.showinfo("Success", "Login details successfully saved! (Restart program and login)")
+
+# Create the main window
+root = tk.Tk()
+root.title("PWD Manager")
+root.geometry("400x300")
+
+# Username and Password Entry
+label_username = tk.Label(root, text="Username:")
+label_username.pack()
+entry_username = tk.Entry(root)
+entry_username.pack()
+
+label_password = tk.Label(root, text="Password:")
+label_password.pack()
+entry_password = tk.Entry(root, show="*")
+entry_password.pack()
+
+# Login button
+button_login = tk.Button(root, text="Login", command=login)
+button_login.pack()
+
+# Password Display Entry and Button
+entry_display = tk.Entry(root, state=tk.DISABLED)
+entry_display.pack()
+
+button_display = tk.Button(root, text="Display Password", command=display_password, state=tk.DISABLED)
+button_display.pack()
+
+# Save Password Entry and Button
+entry_tag = tk.Entry(root, state=tk.DISABLED)
+entry_tag.pack()
+
+button_save = tk.Button(root, text="Save Password", command=save_password, state=tk.DISABLED)
+button_save.pack()
+
+# Generate Password Entry, Length Entry and Button
+entry_generate_tag = tk.Entry(root, state=tk.DISABLED)
+entry_generate_tag.pack()
+
+label_password_length = tk.Label(root, text="Password Length:")
+label_password_length.pack()
+entry_password_length = tk.Entry(root, state=tk.DISABLED)
+entry_password_length.pack()
+
+button_generate = tk.Button(root, text="Generate Password", command=generate_password, state=tk.DISABLED)
+button_generate.pack()
+
+root.mainloop()
